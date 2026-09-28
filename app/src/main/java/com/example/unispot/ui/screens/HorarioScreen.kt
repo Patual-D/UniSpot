@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.unispot.data.CategoriaReserva
+import com.example.unispot.data.ReservacionConUsuario
 import com.example.unispot.data.ReservacionEntity
 import com.example.unispot.data.ReservacionViewModel
 import com.example.unispot.ui.EsPanol
@@ -55,11 +59,16 @@ import com.example.unispot.ui.HorarioSemana
 import com.example.unispot.ui.ReservaPendiente
 import com.example.unispot.ui.components.AreaTactilMinima
 import com.example.unispot.ui.components.ConfirmacionBorrado
+import com.example.unispot.ui.components.InsigniaCategoria
+import com.example.unispot.ui.components.MuestraLeyenda
 import com.example.unispot.ui.etiquetaCorta
 import com.example.unispot.ui.etiquetaLarga
 import com.example.unispot.ui.etiquetaMesAnio
 import com.example.unispot.ui.rangoDeHoras
 import com.example.unispot.ui.theme.UniSpotTheme
+import com.example.unispot.ui.theme.color
+import com.example.unispot.ui.theme.colorBorde
+import com.example.unispot.ui.theme.colorContenido
 import java.time.LocalDate
 import java.time.format.TextStyle
 
@@ -81,7 +90,7 @@ fun HorarioScreen(
 ) {
     val hoy = remember { LocalDate.now() }
     var lunes by remember { mutableStateOf(HorarioSemana.lunesDe(hoy)) }
-    var reservaAMostrar by remember { mutableStateOf<ReservacionEntity?>(null) }
+    var reservaAMostrar by remember { mutableStateOf<ReservacionConUsuario?>(null) }
     var confirmandoBorrado by remember { mutableStateOf<ReservacionEntity?>(null) }
 
     val dias = remember(lunes) { HorarioSemana.diasDeLunes(lunes) }
@@ -90,8 +99,12 @@ fun HorarioScreen(
         viewModel.reservasDelAula(aulaId, dias.first(), dias.last())
     }.collectAsStateWithLifecycle(emptyList())
 
-    val reservasPorDia = remember(reservas, dias) {
-        HorarioSemana.indiceReservasPorDia(reservas, dias)
+    // La rejilla solo necesita la entidad; el nombre de quien reservó es para
+    // el modal, así que se aparta en vez de arrastrarlo por toda la pantalla.
+    val soloReservas = remember(reservas) { reservas.map { it.reserva } }
+
+    val reservasPorDia = remember(soloReservas, dias) {
+        HorarioSemana.indiceReservasPorDia(soloReservas, dias)
     }
 
     // Una reserva de varias horas ocupa varias celdas, así que los "libres" se
@@ -257,7 +270,11 @@ fun HorarioScreen(
                                         )
                                     )
                                 },
-                                onCeldaReservadaClick = { reservaAMostrar = reserva }
+                                onCeldaReservadaClick = { bloque ->
+                                    // El id es único, así que el primer match es
+                                    // el correcto: la celda ya viene de la lista.
+                                    reservaAMostrar = reservas.first { it.reserva.id == bloque.id }
+                                }
                             )
                         }
                     }
@@ -270,27 +287,37 @@ fun HorarioScreen(
         LeyendaHorario()
     }
 
-    // Detalle de una reserva ya existente.
-    val reserva = reservaAMostrar
-    if (reserva != null) {
+    // Detalle de una reserva ya existente. Se abre al tocar una celda con
+    // reserva, que es lo que pedía el calendario.
+    val conUsuario = reservaAMostrar
+    if (conUsuario != null) {
+        val reserva = conUsuario.reserva
         val esMia = reserva.usuarioId == usuarioIdActual
         AlertDialog(
             onDismissRequest = { reservaAMostrar = null },
             title = { Text(reserva.titulo, modifier = Modifier.semantics { heading() }) },
             text = {
-                Column {
-                    Text(reserva.fecha.etiquetaLarga())
-                    Text(reserva.rangoDeHoras())
-                    if (!reserva.detalles.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.heightIn(min = 8.dp))
-                        Text(reserva.detalles)
-                    }
-                    Spacer(modifier = Modifier.heightIn(min = 8.dp))
-                    Text(
-                        if (esMia) "Reservación tuya" else "Reservado por otro usuario",
-                        fontSize = 12.sp,
-                        color = UniSpotTheme.colors.textoSecundario
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    InsigniaCategoria(categoria = reserva.categoria)
+
+                    Spacer(modifier = Modifier.heightIn(min = 12.dp))
+
+                    DatoModal(etiqueta = "Cuándo", valor = reserva.fecha.etiquetaLarga())
+                    DatoModal(etiqueta = "Horario", valor = reserva.rangoDeHoras())
+                    DatoModal(etiqueta = "Aula", valor = "$edificioNombre · $aulaNombre")
+                    DatoModal(
+                        etiqueta = "Reservada por",
+                        valor = if (esMia) "Tú" else conUsuario.nombreUsuario
                     )
+
+                    if (!reserva.detalles.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.heightIn(min = 12.dp))
+                        Text(
+                            reserva.detalles,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -391,7 +418,9 @@ private fun EncabezadosDias(dias: List<LocalDate>, hoy: LocalDate) {
 
 /**
  * Una celda del horario. Libre y reservada comparten forma y tamaño: lo único
- * que cambia es el color de fondo, para que se distinga de un vistazo.
+ * que cambia es el color, para que se distinga de un vistazo. La reservada toma
+ * el color de su categoría, y con ella su borde y su color de texto, porque
+ * cada categoría necesita un par distinto para llegar al contraste mínimo.
  */
 @Composable
 private fun CeldaHorario(
@@ -408,27 +437,31 @@ private fun CeldaHorario(
     // repetirlo cinco veces si ocupa varias horas seguidas.
     val muestraTitulo = reserva != null && reserva.horaInicio >= horaInicio
 
+    val relleno = reserva?.categoria?.color ?: colores.celdaLibre
+    val borde = reserva?.categoria?.colorBorde ?: colores.bordeCelda
+    val contenido = reserva?.categoria?.colorContenido ?: colores.contenidoSobreVerdeOscuro
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .padding(vertical = 1.dp)
-            .background(
-                if (reserva == null) colores.celdaLibre else colores.celdaReservada,
-                RoundedCornerShape(6.dp)
-            )
-            .border(1.dp, colores.bordeCelda, RoundedCornerShape(6.dp))
+            .background(relleno, RoundedCornerShape(6.dp))
+            .border(1.dp, borde, RoundedCornerShape(6.dp))
             .clickable {
                 if (reserva == null) onCeldaLibreClick() else onCeldaReservadaClick(reserva)
             }
             .semantics {
-                stateDescription = if (reserva == null) "Libre" else "Reservado"
+                stateDescription = if (reserva == null) "Libre" else reserva.categoria.nombre
                 contentDescription = if (reserva == null) {
                     "Libre, ${fecha.etiquetaLarga()}, " +
                         HorarioSemana.etiquetaHora(indiceBloque)
                 } else {
-                    "Reservado, ${reserva.titulo}, ${reserva.rangoDeHoras()}, " +
-                        fecha.etiquetaLarga()
+                    // El nombre de la categoría va en el texto porque los cinco
+                    // colores se parecen demasiado para distinguirlos a simple
+                    // vista, y el color no puede ser la única pista.
+                    "${reserva.categoria.nombre}, ${reserva.titulo}, " +
+                        "${reserva.rangoDeHoras()}, ${fecha.etiquetaLarga()}"
                 }
             }
             .padding(horizontal = 2.dp),
@@ -437,7 +470,7 @@ private fun CeldaHorario(
         if (muestraTitulo) {
             Text(
                 reserva!!.titulo,
-                color = colores.contenidoSobreVerdeOscuro,
+                color = contenido,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 3,
@@ -448,34 +481,63 @@ private fun CeldaHorario(
     }
 }
 
+/**
+ * Leyenda del calendario. Con cinco categorías más "Libre" ya no cabe en una
+ * sola línea en móvil, así que fluye a varias. Cumplir su función es justo lo
+ * que hace falta aquí: sin ella el color de una celda no significaría nada,
+ * porque los cinco tonos se parecen entre sí.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LeyendaHorario() {
     val colores = UniSpotTheme.colors
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        ItemLeyenda(color = colores.celdaLibre, texto = "Libre")
-        ItemLeyenda(color = colores.celdaReservada, texto = "Reservado")
+        ItemLeyenda(colores.celdaLibre, colores.bordeCelda, "Libre")
+        CategoriaReserva.entries.forEach { categoria ->
+            ItemLeyenda(categoria.color, categoria.colorBorde, categoria.nombre)
+        }
     }
 }
 
 @Composable
-private fun ItemLeyenda(color: Color, texto: String) {
+private fun ItemLeyenda(color: Color, colorBorde: Color, texto: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         // La leyenda es informativa, no un control: no debe anunciarse.
         modifier = Modifier.clearAndSetSemantics {}
     ) {
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-                .background(color, RoundedCornerShape(4.dp))
-        )
+        MuestraLeyenda(color = color, colorBorde = colorBorde)
         Spacer(modifier = Modifier.width(6.dp))
         Text(texto, fontSize = 12.sp, color = UniSpotTheme.colors.textoSecundario)
+    }
+}
+
+/** Fila etiqueta/valor del modal de detalle. */
+@Composable
+private fun DatoModal(etiqueta: String, valor: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            etiqueta,
+            fontSize = 13.sp,
+            color = UniSpotTheme.colors.textoSecundario,
+            modifier = Modifier.width(96.dp)
+        )
+        Text(
+            valor,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
     }
 }

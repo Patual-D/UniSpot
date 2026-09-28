@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AulaEntity::class,
         ReservacionEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -107,6 +107,20 @@ abstract class UniSpotDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Añade la categoría a las reservas. Se asigna CLASES a lo que ya
+         * existía para que no queden celdas sin categoría en el calendario y
+         * para que la columna pueda ser NOT NULL desde el principio.
+         */
+        val MIGRACION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `reservaciones` " +
+                        "ADD COLUMN `categoria` TEXT NOT NULL DEFAULT 'CLASES'"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: UniSpotDatabase? = null
 
@@ -117,7 +131,7 @@ abstract class UniSpotDatabase : RoomDatabase() {
                     UniSpotDatabase::class.java,
                     "unispot_database"
                 )
-                    .addMigrations(MIGRACION_1_2)
+                    .addMigrations(MIGRACION_1_2, MIGRACION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

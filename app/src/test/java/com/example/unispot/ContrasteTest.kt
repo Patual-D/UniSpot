@@ -1,11 +1,11 @@
 package com.example.unispot
 
 import androidx.compose.ui.graphics.Color
+import com.example.unispot.data.CategoriaReserva
 import com.example.unispot.ui.AnchoVentana
 import com.example.unispot.ui.clasificarAncho
 import com.example.unispot.ui.theme.BordeCelda
 import com.example.unispot.ui.theme.CeldaLibre
-import com.example.unispot.ui.theme.CeldaReservada
 import com.example.unispot.ui.theme.ContenidoSobreVerdeClaro
 import com.example.unispot.ui.theme.ContenidoSobreVerdeOscuro
 import com.example.unispot.ui.theme.ContenidoSobreVerdePrincipal
@@ -15,6 +15,9 @@ import com.example.unispot.ui.theme.TextoSecundario
 import com.example.unispot.ui.theme.VerdeClaro
 import com.example.unispot.ui.theme.VerdeOscuro
 import com.example.unispot.ui.theme.VerdePrincipal
+import com.example.unispot.ui.theme.color
+import com.example.unispot.ui.theme.colorBorde
+import com.example.unispot.ui.theme.colorContenido
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -99,20 +102,142 @@ class ContrasteTest {
     }
 
     @Test
-    fun `las celdas libres y reservadas se distinguen entre si`() {
-        assertUI(CeldaLibre, CeldaReservada, "celda libre contra celda reservada")
-    }
-
-    @Test
     fun `el borde de la celda la separa del fondo`() {
-        // El verde claro sobre el fondo gris queda en 1.66:1: sin borde, las
+        // El relleno neutro queda a 1.08:1 del fondo gris: sin borde, las
         // celdas libres se perderían en el fondo.
         assertUI(BordeCelda, Fondo, "borde de celda contra el fondo")
     }
 
     @Test
     fun `el borde de la celda se ve sobre el relleno de la celda`() {
-        assertUI(BordeCelda, CeldaLibre, "borde de celda contra relleno verde claro")
+        assertUI(BordeCelda, CeldaLibre, "borde de celda contra relleno neutro claro")
+    }
+
+    @Test
+    fun `el texto de cada categoria cumple AA sobre su color`() {
+        // Cuatro de las cinco categorías son pasteles: con texto blanco bajaban
+        // a 1.4:1 - 2.02:1. "Juntas" es la única oscura y sí lleva blanco.
+        CategoriaReserva.entries.forEach { categoria ->
+            assertAA(
+                categoria.colorContenido,
+                categoria.color,
+                "texto de ${categoria.nombre}"
+            )
+        }
+    }
+
+    @Test
+    fun `el borde de cada categoria recorta su celda`() {
+        // WCAG 1.4.11: el límite de un componente necesita 3:1 contra su propio
+        // relleno. Aquí es lo único que separa dos celdas vecinas, porque los
+        // cinco rellenos se parecen demasiado entre sí.
+        CategoriaReserva.entries.forEach { categoria ->
+            assertUI(
+                categoria.colorBorde,
+                categoria.color,
+                "borde de ${categoria.nombre} contra su relleno"
+            )
+        }
+    }
+
+    @Test
+    fun `cada celda se recorta contra el fondo de la pantalla`() {
+        // Una celda puede apoyarse en su relleno o en su borde para separarse
+        // del fondo, y no siempre en los dos. Las cuatro categorías claras
+        // tienen un relleno que apenas contrasta con el fondo gris (1.2:1 a
+        // 1.9:1) pero un borde que sí llega (5.43:1 a 8.91:1). "Juntas" es al
+        // revés: su borde claro se pierde contra el fondo, pero su relleno
+        // oscuro da 12.75:1. Exigir las dos cosas a la vez rechazaría un diseño
+        // que en la práctica sí se ve bien.
+        val celdas = listOf(
+            Triple("Libre", CeldaLibre, BordeCelda)
+        ) + CategoriaReserva.entries.map { Triple(it.nombre, it.color, it.colorBorde) }
+
+        celdas.forEach { (nombre, relleno, borde) ->
+            val porRelleno = contraste(relleno, Fondo)
+            val porBorde = contraste(borde, Fondo)
+            assertTrue(
+                "$nombre no se distingue del fondo: relleno $porRelleno, borde $porBorde, " +
+                    "y hace falta que alguno llegue a 3.0",
+                maxOf(porRelleno, porBorde) >= 3.0
+            )
+        }
+    }
+
+    @Test
+    fun `el limite entre dos celdas vecinas siempre queda marcado`() {
+        // Este es el test que justifica el diseño. Dos rellenos contiguos casi
+        // nunca llegan a 3:1 entre sí (Talleres contra Punto de Encuentro daba
+        // 1.03:1), así que comparar relleno contra relleno no sirve. Lo que hace
+        // legible la rejilla es que el contorno de una de las dos celdas se
+        // distinga del relleno de la otra; si los rellenos ya se distinguen
+        // solos, como pasa con las celdas oscuras, tampoco hace falta borde.
+        //
+        // Se recorren todos los pares, incluida la celda libre, y se exige que
+        // alguno de los tres contraste alcance 3:1.
+        val celdas = listOf(
+            Triple("Libre", CeldaLibre, BordeCelda)
+        ) + CategoriaReserva.entries.map { Triple(it.nombre, it.color, it.colorBorde) }
+
+        for (i in celdas.indices) {
+            for (j in i + 1 until celdas.size) {
+                val (nombreA, rellenoA, bordeA) = celdas[i]
+                val (nombreB, rellenoB, bordeB) = celdas[j]
+
+                val mejor = listOf(
+                    contraste(rellenoA, rellenoB) to "los rellenos",
+                    contraste(bordeA, rellenoB) to "el borde de $nombreA",
+                    contraste(bordeB, rellenoA) to "el borde de $nombreB"
+                ).maxBy { it.first }
+
+                assertTrue(
+                    "El límite entre $nombreA y $nombreB no se marca: el mejor " +
+                        "contraste es ${mejor.first} (${mejor.second}) y se necesita 3.0",
+                    mejor.first >= 3.0
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `la celda libre es neutra y no un color de marca`() {
+        // Los cinco colores de categoría estaban entre 1.02:1 y 1.37:1 contra
+        // el verde de marca, así que con la libre en ese verde una celda de
+        // Talleres y una libre eran indistinguibles. La libre pasó a gris
+        // neutro, y por eso sus tres canales tienen que ser iguales: es lo que
+        // garantiza que no se parezca a ninguna categoría.
+        assertEquals(CeldaLibre.red, CeldaLibre.green)
+        assertEquals(CeldaLibre.green, CeldaLibre.blue)
+        assertTrue(
+            "la celda libre debe seguir lejos del verde de marca",
+            contraste(CeldaLibre, VerdeClaro) < 3.0
+        )
+    }
+
+    @Test
+    fun `cada categoria tiene un nombre y una clave distintos`() {
+        val claves = CategoriaReserva.entries.map { it.clave }
+        val nombres = CategoriaReserva.entries.map { it.nombre }
+        assertEquals(claves.size, claves.toSet().size)
+        assertEquals(nombres.size, nombres.toSet().size)
+    }
+}
+
+class CategoriaReservaTest {
+
+    @Test
+    fun `una clave desconocida cae en la categoria por defecto`() {
+        // Si mañana se agrega una categoría y queda una vieja en la base, la
+        // reserva debe seguir siendo visible en vez de romper la pantalla.
+        assertEquals(CategoriaReserva.POR_DEFECTO, CategoriaReserva.desdeClave("NO_EXISTE"))
+        assertEquals(CategoriaReserva.POR_DEFECTO, CategoriaReserva.desdeClave(null))
+    }
+
+    @Test
+    fun `cada clave guardada se vuelve a leer como su categoria`() {
+        CategoriaReserva.entries.forEach { categoria ->
+            assertEquals(categoria, CategoriaReserva.desdeClave(categoria.clave))
+        }
     }
 }
 

@@ -19,23 +19,39 @@ interface ReservacionDao {
     @Query("SELECT * FROM reservaciones WHERE id = :id LIMIT 1")
     suspend fun porId(id: Long): ReservacionEntity?
 
-    /** Reservas del usuario en sesión, para la pantalla "Mis reservas". */
-    @Query("SELECT * FROM reservaciones WHERE usuarioId = :usuarioId ORDER BY fecha DESC, horaInicio ASC")
-    fun porUsuario(usuarioId: Long): Flow<List<ReservacionEntity>>
-
     /**
      * Todas las reservas de un aula dentro de un rango de fechas. Alimenta la
      * rejilla del calendario: como las horas se guardan como minutos, el
      * solapamiento se resuelve comparando enteros.
+     *
+     * Trae también el nombre de quien reservó, que es lo que muestra el modal.
      */
     @Query(
         """
-        SELECT * FROM reservaciones
-        WHERE aulaId = :aulaId AND fecha BETWEEN :desde AND :hasta
-        ORDER BY fecha ASC, horaInicio ASC
+        SELECT r.*, u.nombre AS nombreUsuario
+        FROM reservaciones r
+        INNER JOIN usuarios u ON u.id = r.usuarioId
+        WHERE r.aulaId = :aulaId AND r.fecha BETWEEN :desde AND :hasta
+        ORDER BY r.fecha ASC, r.horaInicio ASC
         """
     )
-    fun porAulaYRango(aulaId: Long, desde: LocalDate, hasta: LocalDate): Flow<List<ReservacionEntity>>
+    fun porAulaYRango(
+        aulaId: Long,
+        desde: LocalDate,
+        hasta: LocalDate
+    ): Flow<List<ReservacionConUsuario>>
+
+    /** Igual que [porAulaYRango] pero con las reservas de un solo usuario. */
+    @Query(
+        """
+        SELECT r.*, u.nombre AS nombreUsuario
+        FROM reservaciones r
+        INNER JOIN usuarios u ON u.id = r.usuarioId
+        WHERE r.usuarioId = :usuarioId
+        ORDER BY r.fecha DESC, r.horaInicio ASC
+        """
+    )
+    fun porUsuarioConNombre(usuarioId: Long): Flow<List<ReservacionConUsuario>>
 
     /**
      * Cuenta reservas que se cruzan con el intervalo propuesto. La condición es

@@ -23,4 +23,10 @@ class Converters {
 
     @TypeConverter
     fun aLocalTime(valor: Int?): LocalTime? = valor?.let { LocalTime.ofSecondOfDay(it * 60L) }
+
+    @TypeConverter
+    fun deCategoria(valor: CategoriaReserva?): String? = valor?.clave
+
+    @TypeConverter
+    fun aCategoria(valor: String?): CategoriaReserva? = valor?.let { CategoriaReserva.desdeClave(it) }
 }

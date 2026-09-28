@@ -1,5 +1,7 @@
 package com.example.unispot.data
 
+import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -44,5 +46,20 @@ data class ReservacionEntity(
     val fecha: LocalDate,
     val horaInicio: LocalTime,
     val horaFin: LocalTime,
-    val creadoEn: Long = System.currentTimeMillis()
+    val creadoEn: Long = System.currentTimeMillis(),
+    // La migración 2→3 asigna CLASES a lo que ya estaba guardado, así que
+    // nunca es nulo aunque se omita al construir la entidad en el código.
+    // El default se declara en la columna para que el esquema lo deje escrito
+    // y la migración no dependa de un detalle implícito.
+    @ColumnInfo(defaultValue = "'CLASES'")
+    val categoria: CategoriaReserva = CategoriaReserva.POR_DEFECTO
+)
+
+/**
+ * Reserva junto al nombre de quien la hizo. El modal lo necesita para decir de
+ * quién es, y antes de este JOIN solo se sabía si era propia o ajena.
+ */
+data class ReservacionConUsuario(
+    @Embedded val reserva: ReservacionEntity,
+    val nombreUsuario: String
 )

@@ -84,7 +84,8 @@ fun MisReservasScreen(
                     verticalArrangement = Arrangement.spacedBy(15.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(reservas, key = { it.id }) { reserva ->
+                    items(reservas, key = { it.reserva.id }) { conUsuario ->
+                        val reserva = conUsuario.reserva
                         TarjetaReserva(
                             reserva = reserva,
                             nombreAula = aulasPorId[reserva.aulaId]?.let {

@@ -27,18 +27,21 @@ val ContenidoSobreVerdePrincipal = Color(0xFF00261D)
 val ContenidoSobreVerdeOscuro = Color(0xFFFFFFFF)
 
 // Colores del calendario.
-// Las celdas libres usan un único color plano; solo las reservadas cambian.
-// Entre ambos verdes hay 3.87:1, por encima del 3:1 que se pide a un
-// componente de interfaz para poder distinguirlo del que tiene al lado.
-val CeldaLibre = VerdeClaro
-val CeldaReservada = VerdeOscuro
-val ContenidoCeldaReservada = Color(0xFFFFFFFF)
+//
+// La celda libre dejó de usar el verde de marca. Los cinco colores de categoría
+// están todos en el mismo rango de luminosidad que VerdeClaro, así que con la
+// libre en verde los pares quedaban entre 1.02:1 y 1.37:1: una celda de
+// Talleres y una libre se veían prácticamente igual. Ahora la libre es un
+// neutro apagado y el color queda para las celdas con reserva, que son las que
+// deben destacar.
+val CeldaLibre = Color(0xFFF7F7F7)
+val CeldaLibreOscura = Color(0xFF2A2A2A)
 
-// El verde claro sobre el fondo gris queda en 1.66:1, así que las celdas
-// llevan un borde propio: es lo que las separa del fondo (6.07:1) y da el
-// contorno que necesita quien tenga baja visión.
-val BordeCelda = Color(0xFF0B6640)
-val BordeCeldaOscuro = Color(0xFF1E5C3A)
+// El relleno neutro queda a 1.08:1 del fondo, así que sin borde la celda se
+// perdería. El borde es lo que la recorta: 4.01:1 contra su propio relleno en
+// tema claro y 5.1:1 en oscuro.
+val BordeCelda = Color(0xFF7A7A7A)
+val BordeCeldaOscuro = Color(0xFF9A9A9A)
 
 // Texto secundario: el gris por defecto daba 3.41:1, insuficiente para texto
 // normal. Este valor alcanza 7.65:1 sobre el fondo claro.

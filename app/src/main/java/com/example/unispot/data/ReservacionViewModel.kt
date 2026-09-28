@@ -31,7 +31,7 @@ class ReservacionViewModel(application: Application) : AndroidViewModel(applicat
     val ultimaReservaGuardadaId: StateFlow<Long?> = _ultimaReservaGuardadaId.asStateFlow()
 
     /** Reacciona a la sesión: si el usuario cambia, la lista se recalcula sola. */
-    val misReservaciones: Flow<List<ReservacionEntity>> = _usuarioId.flatMapLatest { id ->
+    val misReservaciones: Flow<List<ReservacionConUsuario>> = _usuarioId.flatMapLatest { id ->
         if (id == -1L) flowOf(emptyList()) else repository.porUsuario(id)
     }
 
@@ -49,7 +49,7 @@ class ReservacionViewModel(application: Application) : AndroidViewModel(applicat
         aulaId: Long,
         desde: LocalDate,
         hasta: LocalDate
-    ): Flow<List<ReservacionEntity>> = repository.porAulaYRango(aulaId, desde, hasta)
+    ): Flow<List<ReservacionConUsuario>> = repository.porAulaYRango(aulaId, desde, hasta)
 
     fun limpiarErrorReserva() {
         _errorReserva.value = null
@@ -71,7 +71,8 @@ class ReservacionViewModel(application: Application) : AndroidViewModel(applicat
         detalles: String,
         fecha: LocalDate,
         horaInicio: String,
-        horaFin: String
+        horaFin: String,
+        categoria: CategoriaReserva = CategoriaReserva.POR_DEFECTO
     ) {
         if (titulo.isBlank()) {
             _errorReserva.value = "Ponle un título a la reservación"
@@ -107,7 +108,8 @@ class ReservacionViewModel(application: Application) : AndroidViewModel(applicat
                     detalles = detalles.trim().ifBlank { null },
                     fecha = fecha,
                     horaInicio = aLocalTime(horaInicio),
-                    horaFin = aLocalTime(horaFin)
+                    horaFin = aLocalTime(horaFin),
+                    categoria = categoria
                 )
             ).let { _ultimaReservaGuardadaId.value = it }
         }

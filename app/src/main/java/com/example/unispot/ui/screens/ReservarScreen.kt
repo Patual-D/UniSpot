@@ -1,18 +1,25 @@
 package com.example.unispot.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,16 +53,23 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.unispot.data.CategoriaReserva
 import com.example.unispot.data.ReservacionRepository
 import com.example.unispot.data.ReservacionViewModel
 import com.example.unispot.ui.HorarioSemana
 import com.example.unispot.ui.ReservaPendiente
+import com.example.unispot.ui.components.AreaTactilMinima
+import com.example.unispot.ui.components.MuestraCategoria
 import com.example.unispot.ui.etiquetaLarga
 import com.example.unispot.ui.theme.UniSpotTheme
+import com.example.unispot.ui.theme.color
+import com.example.unispot.ui.theme.colorBorde
+import com.example.unispot.ui.theme.colorContenido
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -71,6 +85,11 @@ fun ReservarScreen(
 ) {
     var titulo by remember { mutableStateOf("") }
     var detalles by remember { mutableStateOf("") }
+
+    // La categoría decide el color de la celda en el calendario. Se elige
+    // siempre una, sin obligar a tocar nada: si se olvida, se publica como
+    // clase, que es el caso más común.
+    var categoria by remember { mutableStateOf(CategoriaReserva.POR_DEFECTO) }
 
     // Si se llegó desde una celda del calendario, el formulario queda precargado.
     var fecha by remember(pendiente) { mutableStateOf(pendiente?.fecha ?: LocalDate.now()) }
@@ -145,6 +164,13 @@ fun ReservarScreen(
                 label = { Text("Descripción (opcional)") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            SelectorCategoria(
+                seleccionada = categoria,
+                onSeleccionar = { categoria = it }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -227,7 +253,8 @@ fun ReservarScreen(
                             detalles = detalles,
                             fecha = fecha,
                             horaInicio = horaInicio,
-                            horaFin = horaFin
+                            horaFin = horaFin,
+                            categoria = categoria
                         )
                     },
                     enabled = titulo.isNotBlank() && !fueraDeHorario,
@@ -313,6 +340,101 @@ fun ReservarScreen(
                     editandoInicio = false
                     editandoFin = false
                 }) { Text("Cancelar") }
+            }
+        )
+    }
+}
+
+/**
+ * Selector de categoría, con los cinco chips y "Clases" marcada de entrada.
+ *
+ * Se muestran los nombres, no solo los colores: los cinco tonos se parecen
+ * demasiado para distinguirlos a simple vista, así que la muestra sola no
+ * bastaría. Al elegir, el chip toma el color de la categoría, que es
+ * exactamente como se verá en el calendario.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SelectorCategoria(
+    seleccionada: CategoriaReserva,
+    onSeleccionar: (CategoriaReserva) -> Unit
+) {
+    Column {
+        Text(
+            "Categoría",
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.semantics { heading() }
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            "Define el color con el que se verá en el calendario.",
+            fontSize = 12.sp,
+            color = UniSpotTheme.colors.textoSecundario
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CategoriaReserva.entries.forEach { opcion ->
+                ChipCategoria(
+                    categoria = opcion,
+                    seleccionada = opcion == seleccionada,
+                    onClick = { onSeleccionar(opcion) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChipCategoria(
+    categoria: CategoriaReserva,
+    seleccionada: Boolean,
+    onClick: () -> Unit
+) {
+    val forma = RoundedCornerShape(999.dp)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            // selectable y no clickable: así TalkBack anuncia si está marcado,
+            // que es lo único que distingue un chip de otro cuando el color es
+            // la única diferencia visual.
+            .selectable(
+                selected = seleccionada,
+                role = Role.RadioButton,
+                onClick = onClick
+            )
+            .heightIn(min = AreaTactilMinima)
+            .background(
+                if (seleccionada) categoria.color else MaterialTheme.colorScheme.surface,
+                forma
+            )
+            .border(1.dp, categoria.colorBorde, forma)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        if (!seleccionada) {
+            MuestraCategoria(categoria = categoria)
+        }
+
+        Text(
+            categoria.nombre,
+            fontSize = 13.sp,
+            fontWeight = if (seleccionada) FontWeight.Bold else FontWeight.Normal,
+            color = if (seleccionada) {
+                categoria.colorContenido
+            } else {
+                MaterialTheme.colorScheme.onSurface
             }
         )
     }

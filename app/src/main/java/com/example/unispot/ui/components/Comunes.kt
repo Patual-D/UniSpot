@@ -503,6 +503,12 @@ fun TarjetaReserva(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
+                    // La categoría va en la tarjeta porque es lo que explica el
+                    // color con el que aparece en el calendario.
+                    InsigniaCategoria(categoria = reserva.categoria)
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     Text(
                         nombreAula,
                         color = colores.contenidoSobreVerde

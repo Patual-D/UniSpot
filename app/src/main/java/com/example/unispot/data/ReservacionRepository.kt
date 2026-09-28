@@ -5,13 +5,14 @@ import kotlinx.coroutines.flow.Flow
 
 class ReservacionRepository(private val dao: ReservacionDao) {
 
-    fun porUsuario(usuarioId: Long): Flow<List<ReservacionEntity>> = dao.porUsuario(usuarioId)
+    fun porUsuario(usuarioId: Long): Flow<List<ReservacionConUsuario>> =
+        dao.porUsuarioConNombre(usuarioId)
 
     fun porAulaYRango(
         aulaId: Long,
         desde: LocalDate,
         hasta: LocalDate
-    ): Flow<List<ReservacionEntity>> = dao.porAulaYRango(aulaId, desde, hasta)
+    ): Flow<List<ReservacionConUsuario>> = dao.porAulaYRango(aulaId, desde, hasta)
 
     suspend fun insertar(reservacion: ReservacionEntity): Long = dao.insertar(reservacion)
 
