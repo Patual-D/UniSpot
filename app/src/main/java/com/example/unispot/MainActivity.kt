@@ -4,10 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,26 +30,30 @@ import com.example.unispot.ui.ControladorNavegacion
 import com.example.unispot.ui.Pantalla
 import com.example.unispot.ui.ReservaPendiente
 import com.example.unispot.ui.components.PantallaBase
+import com.example.unispot.ui.esPantallaExpandida
 import com.example.unispot.ui.screens.EdificiosScreen
 import com.example.unispot.ui.screens.HorarioScreen
 import com.example.unispot.ui.screens.LoginScreen
 import com.example.unispot.ui.screens.MisReservasScreen
+import com.example.unispot.ui.screens.PanelDualScreen
 import com.example.unispot.ui.screens.PantallaCarga
 import com.example.unispot.ui.screens.PerfilScreen
 import com.example.unispot.ui.screens.RegistroScreen
 import com.example.unispot.ui.screens.ReservarScreen
 import com.example.unispot.ui.screens.SalonesScreen
-import com.example.unispot.ui.theme.Fondo
+import com.example.unispot.ui.theme.UniSpotTheme
 import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Con esto el contenido llega hasta los bordes y son los Insets de
+        // Compose los que separan la barra de estado, en vez de un fondo pintado
+        // con padding fijo que se ve mal en pantallas con recorte.
+        enableEdgeToEdge()
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Fondo) {
-                    UniSpotApp()
-                }
+            UniSpotTheme(temaOscuro = isSystemInDarkTheme()) {
+                UniSpotApp()
             }
         }
     }
@@ -80,31 +87,37 @@ fun UniSpotApp() {
         controlador.volver()
     }
 
-    if (restaurando) {
-        PantallaCarga()
-        return
-    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        if (restaurando) {
+            PantallaCarga()
+            return@Box
+        }
 
-    if (usuario == null) {
-        PantallaAcceso(
-            sesion = sesion,
-            enRegistro = controlador.pantalla == Pantalla.REGISTRO,
-            onIrARegistro = { controlador.irA(Pantalla.REGISTRO) },
-            onVolverDeRegistro = { controlador.irA(Pantalla.LOGIN) },
-            servicioNoDisponible = servicioNoDisponible,
-            onServicioNoDisponible = { servicioNoDisponible = it },
-            onCerrarAviso = { servicioNoDisponible = null }
+        if (usuario == null) {
+            PantallaAcceso(
+                sesion = sesion,
+                enRegistro = controlador.pantalla == Pantalla.REGISTRO,
+                onIrARegistro = { controlador.irA(Pantalla.REGISTRO) },
+                onVolverDeRegistro = { controlador.irA(Pantalla.LOGIN) },
+                servicioNoDisponible = servicioNoDisponible,
+                onServicioNoDisponible = { servicioNoDisponible = it },
+                onCerrarAviso = { servicioNoDisponible = null }
+            )
+            return@Box
+        }
+
+        ContenidoSesionIniciada(
+            usuario = usuario!!,
+            catalogo = catalogo,
+            reservaciones = reservaciones,
+            controlador = controlador,
+            onCerrarSesion = { sesion.cerrarSesion() }
         )
-        return
     }
-
-    ContenidoSesionIniciada(
-        usuario = usuario!!,
-        catalogo = catalogo,
-        reservaciones = reservaciones,
-        controlador = controlador,
-        onCerrarSesion = { sesion.cerrarSesion() }
-    )
 }
 
 private val ACCESO = setOf(Pantalla.LOGIN, Pantalla.REGISTRO)
@@ -154,9 +167,13 @@ private fun ContenidoSesionIniciada(
     controlador: ControladorNavegacion,
     onCerrarSesion: () -> Unit
 ) {
+    // En tablet la lista y el horario conviven, así que no hay pantalla de
+    // salones por separado: el panel izquierdo ya las muestra.
+    val dosPaneles = esPantallaExpandida()
+
     // Si se pierde el edificio o el aula (por ejemplo tras cerrar sesión y
     // volver a entrar) se regresa a la raíz en vez de mostrar datos vacíos.
-    LaunchedEffect(controlador.pantalla, controlador.edificio, controlador.aula) {
+    LaunchedEffect(controlador.pantalla, controlador.edificio, controlador.aula, dosPaneles) {
         val necesitaAula = controlador.pantalla in setOf(Pantalla.HORARIO, Pantalla.RESERVAR)
         if ((controlador.pantalla == Pantalla.SALONES && controlador.edificio == null) ||
             (necesitaAula && (controlador.aula == null || controlador.edificio == null))
@@ -174,6 +191,17 @@ private fun ContenidoSesionIniciada(
         onReservas = { controlador.irA(Pantalla.RESERVAS) },
         onPerfil = { controlador.irA(Pantalla.PERFIL) }
     ) {
+        if (dosPaneles) {
+            PanelDualScreen(
+                usuario = usuario,
+                catalogo = catalogo,
+                reservaciones = reservaciones,
+                controlador = controlador,
+                onCerrarSesion = onCerrarSesion
+            )
+            return@PantallaBase
+        }
+
         when (controlador.pantalla) {
             Pantalla.EDIFICIOS -> EdificiosScreen(
                 catalogo = catalogo,

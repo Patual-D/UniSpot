@@ -96,4 +96,28 @@ class HorarioSemanaTest {
         assertEquals(21, HorarioSemana.HORA_FIN)
         assertEquals(14, HorarioSemana.NUM_BLOQUES)
     }
+
+    @Test
+    fun `una semana sin reservas tiene los catorce por cinco bloques libres`() {
+        val ocupacion = HorarioSemana.ocupacionDeSemana(
+            HorarioSemana.indiceReservasPorDia(emptyList(), HorarioSemana.diasDeLunes(fecha)),
+            HorarioSemana.diasDeLunes(fecha)
+        )
+
+        assertEquals(70, ocupacion.libres)
+        assertEquals(0, ocupacion.ocupados)
+    }
+
+    @Test
+    fun `una reserva larga ocupa tantos bloques como horas dura`() {
+        val dias = HorarioSemana.diasDeLunes(fecha)
+        // Una reserva de tres horas el lunes ocupa tres celdas, no una.
+        val ocupacion = HorarioSemana.ocupacionDeSemana(
+            HorarioSemana.indiceReservasPorDia(listOf(reserva("08:00", "11:00")), dias),
+            dias
+        )
+
+        assertEquals(3, ocupacion.ocupados)
+        assertEquals(67, ocupacion.libres)
+    }
 }

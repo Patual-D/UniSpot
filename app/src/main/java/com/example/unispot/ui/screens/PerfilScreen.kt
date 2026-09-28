@@ -1,9 +1,7 @@
 package com.example.unispot.ui.screens
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,25 +14,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.unispot.R
 import com.example.unispot.data.UsuarioEntity
+import com.example.unispot.ui.ContenidoCentrado
 import com.example.unispot.ui.EsPanol
 import com.example.unispot.ui.components.BotonPrincipal
-import com.example.unispot.ui.theme.Fondo
-import com.example.unispot.ui.theme.Morado
-import com.example.unispot.ui.theme.VerdeOscuro
+import com.example.unispot.ui.theme.UniSpotTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -51,70 +51,77 @@ fun PerfilScreen(
     usuario: UsuarioEntity?,
     onCerrarSesion: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Fondo)
-            .verticalScroll(rememberScrollState())
-            .padding(30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(25.dp))
+    val colores = UniSpotTheme.colors
 
-        Image(
-            painter = painterResource(id = R.drawable.profile_student),
-            contentDescription = "Foto de perfil del estudiante",
-            modifier = Modifier
-                .size(170.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            usuario?.nombre ?: "Estudiante",
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold,
-            color = VerdeOscuro
-        )
-
-        Text(
-            usuario?.correo.orEmpty(),
-            color = VerdeOscuro.copy(alpha = 0.75f),
-            fontSize = 14.sp
-        )
-
-        Spacer(modifier = Modifier.height(25.dp))
-
+    ContenidoCentrado(anchoMaximo = 520.dp) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 30.dp, vertical = 25.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            DatoPerfil("Matrícula", usuario?.matricula ?: "-")
-            DatoPerfil("Correo", usuario?.correo ?: "-")
-            DatoPerfil(
-                "Cuenta creada",
-                usuario?.creadoEn?.let { FORMATO_FECHA_LARGA.format(Instant.ofEpochMilli(it)) } ?: "-"
+            Image(
+                painter = painterResource(id = R.drawable.profile_student),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(170.dp)
+                    .clip(CircleShape)
+                    .semantics {
+                        contentDescription = "Foto de perfil del estudiante"
+                    },
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                usuario?.nombre ?: "Estudiante",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.semantics { heading() }
+            )
+
+            Text(
+                usuario?.correo.orEmpty(),
+                color = colores.textoSecundario,
+                fontSize = 14.sp
+            )
+
+            Spacer(modifier = Modifier.height(25.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                DatoPerfil("Matrícula", usuario?.matricula ?: "-")
+                DatoPerfil("Correo", usuario?.correo ?: "-")
+                DatoPerfil(
+                    "Cuenta creada",
+                    usuario?.creadoEn?.let { FORMATO_FECHA_LARGA.format(Instant.ofEpochMilli(it)) } ?: "-"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            BotonPrincipal(
+                texto = "Cerrar Sesión",
+                onClick = onCerrarSesion,
+                contenedor = colores.morado
             )
         }
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        BotonPrincipal(
-            texto = "Cerrar Sesión",
-            onClick = onCerrarSesion,
-            contenedor = Morado
-        )
     }
 }
 
 @Composable
 private fun DatoPerfil(etiqueta: String, valor: String) {
+    val colores = UniSpotTheme.colors
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier
@@ -123,16 +130,15 @@ private fun DatoPerfil(etiqueta: String, valor: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(etiqueta, color = VerdeOscuro.copy(alpha = 0.8f), fontSize = 14.sp)
+            Text(etiqueta, color = colores.textoSecundario, fontSize = 14.sp)
 
-            Box(modifier = Modifier.padding(start = 12.dp)) {
-                Text(
-                    valor,
-                    fontWeight = FontWeight.Bold,
-                    color = VerdeOscuro,
-                    fontSize = 14.sp
-                )
-            }
+            Text(
+                valor,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(start = 12.dp)
+            )
         }
     }
 }

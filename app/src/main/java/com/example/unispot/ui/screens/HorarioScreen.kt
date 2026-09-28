@@ -10,10 +10,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,8 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,29 +50,24 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.unispot.data.ReservacionEntity
 import com.example.unispot.data.ReservacionViewModel
+import com.example.unispot.ui.EsPanol
 import com.example.unispot.ui.HorarioSemana
 import com.example.unispot.ui.ReservaPendiente
+import com.example.unispot.ui.components.AreaTactilMinima
+import com.example.unispot.ui.components.ConfirmacionBorrado
 import com.example.unispot.ui.etiquetaCorta
 import com.example.unispot.ui.etiquetaLarga
 import com.example.unispot.ui.etiquetaMesAnio
 import com.example.unispot.ui.rangoDeHoras
-import com.example.unispot.ui.theme.CeldaBorde
-import com.example.unispot.ui.theme.CeldaLibre
-import com.example.unispot.ui.theme.CeldaReservada
-import com.example.unispot.ui.theme.ColumnaHoy
-import com.example.unispot.ui.theme.Fondo
-import com.example.unispot.ui.theme.VerdeOscuro
+import com.example.unispot.ui.theme.UniSpotTheme
 import java.time.LocalDate
+import java.time.format.TextStyle
 
-private val ALTO_CELDA = 46.dp
-private val ANCHO_EJE_HORAS = 52.dp
+private val ANCHO_EJE_HORAS = 56.dp
 
 /**
  * Rejilla semanal real: 07:00 a 21:00 en bloques de una hora, de lunes a
  * viernes. Los datos vienen de la base y las celdas son pulsables.
- *
- * Antes esta pantalla no consultaba nada: la ocupación salía de
- * `(fila + columna) % 3 == 0` y los títulos eran texto fijo.
  */
 @Composable
 fun HorarioScreen(
@@ -77,15 +76,16 @@ fun HorarioScreen(
     edificioNombre: String,
     usuarioIdActual: Long,
     viewModel: ReservacionViewModel,
-    onReservar: (ReservaPendiente) -> Unit
+    onReservar: (ReservaPendiente) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val hoy = remember { LocalDate.now() }
     var lunes by remember { mutableStateOf(HorarioSemana.lunesDe(hoy)) }
     var reservaAMostrar by remember { mutableStateOf<ReservacionEntity?>(null) }
+    var confirmandoBorrado by remember { mutableStateOf<ReservacionEntity?>(null) }
 
     val dias = remember(lunes) { HorarioSemana.diasDeLunes(lunes) }
 
-    // El flow se recrea al cambiar de semana, así que la rejilla se recarga sola.
     val reservas by remember(aulaId, lunes) {
         viewModel.reservasDelAula(aulaId, dias.first(), dias.last())
     }.collectAsStateWithLifecycle(emptyList())
@@ -94,39 +94,48 @@ fun HorarioScreen(
         HorarioSemana.indiceReservasPorDia(reservas, dias)
     }
 
+    // Una reserva de varias horas ocupa varias celdas, así que los "libres" se
+    // cuentan por celda ocupada y no por número de reservas.
+    val ocupacion = remember(reservasPorDia, dias) {
+        HorarioSemana.ocupacionDeSemana(reservasPorDia, dias)
+    }
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(Fondo)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             Text(
                 edificioNombre,
                 fontSize = 14.sp,
-                color = VerdeOscuro.copy(alpha = 0.8f)
+                color = UniSpotTheme.colors.textoSecundario
             )
 
             Text(
                 aulaNombre,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = VerdeOscuro
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.semantics { heading() }
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.heightIn(min = 8.dp))
 
             // Navegación de semana. Sin esto el calendario solo mostraba una
             // semana fija que nunca cambiaba.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { lunes = lunes.minusWeeks(1) }) {
+                IconButton(
+                    onClick = { lunes = lunes.minusWeeks(1) },
+                    modifier = Modifier.size(AreaTactilMinima)
+                ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Semana anterior",
-                        tint = VerdeOscuro
+                        contentDescription = "Ver semana anterior",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -137,20 +146,24 @@ fun HorarioScreen(
                     Text(
                         "${dias.first().etiquetaCorta()} - ${dias.last().etiquetaCorta()}",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         dias.first().etiquetaMesAnio(),
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = UniSpotTheme.colors.textoSecundario
                     )
                 }
 
-                IconButton(onClick = { lunes = lunes.plusWeeks(1) }) {
+                IconButton(
+                    onClick = { lunes = lunes.plusWeeks(1) },
+                    modifier = Modifier.size(AreaTactilMinima)
+                ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Semana siguiente",
-                        tint = VerdeOscuro
+                        contentDescription = "Ver semana siguiente",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -160,17 +173,27 @@ fun HorarioScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Resumen: 70 celdas seguidas no son navegables con TalkBack,
+                // así que primero se da la idea y luego el detalle.
+                val plural = if (reservas.size == 1) "reserva" else "reservas"
                 Text(
-                    "${reservas.size} ${if (reservas.size == 1) "reserva" else "reservas"} esta semana",
-                    fontSize = 12.sp,
-                    color = Color.Gray
+                    "${ocupacion.libres} libres · ${reservas.size} $plural",
+                    fontSize = 13.sp,
+                    color = UniSpotTheme.colors.textoSecundario,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Esta semana hay ${ocupacion.libres} horarios " +
+                            "libres y ${ocupacion.ocupados} reservados"
+                    }
                 )
-                TextButton(onClick = { lunes = HorarioSemana.lunesDe(hoy) }) {
-                    Text("Hoy", color = VerdeOscuro, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = { lunes = HorarioSemana.lunesDe(hoy) },
+                    modifier = Modifier.heightIn(min = AreaTactilMinima)
+                ) {
+                    Text("Hoy", color = UniSpotTheme.colors.verdeOscuro, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.heightIn(min = 4.dp))
         }
 
         EncabezadosDias(dias, hoy)
@@ -181,7 +204,6 @@ fun HorarioScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                // Eje de horas: sin esto las celdas no significan nada.
                 Column(
                     modifier = Modifier
                         .width(ANCHO_EJE_HORAS)
@@ -191,13 +213,16 @@ fun HorarioScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ALTO_CELDA),
+                                // heightIn en vez de height fijo: con letra
+                                // grande el texto se cortaba.
+                                .heightIn(min = 48.dp)
+                                .padding(vertical = 4.dp),
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Text(
                                 HorarioSemana.etiquetaHora(indice),
-                                fontSize = 11.sp,
-                                color = Color.Gray
+                                fontSize = 12.sp,
+                                color = UniSpotTheme.colors.textoSecundario
                             )
                         }
                     }
@@ -239,7 +264,7 @@ fun HorarioScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.heightIn(min = 16.dp))
         }
 
         LeyendaHorario()
@@ -251,20 +276,20 @@ fun HorarioScreen(
         val esMia = reserva.usuarioId == usuarioIdActual
         AlertDialog(
             onDismissRequest = { reservaAMostrar = null },
-            title = { Text(reserva.titulo) },
+            title = { Text(reserva.titulo, modifier = Modifier.semantics { heading() }) },
             text = {
                 Column {
-                    Text("${reserva.fecha.etiquetaLarga()}")
+                    Text(reserva.fecha.etiquetaLarga())
                     Text(reserva.rangoDeHoras())
                     if (!reserva.detalles.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.heightIn(min = 8.dp))
                         Text(reserva.detalles)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.heightIn(min = 8.dp))
                     Text(
                         if (esMia) "Reservación tuya" else "Reservado por otro usuario",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = UniSpotTheme.colors.textoSecundario
                     )
                 }
             },
@@ -275,10 +300,13 @@ fun HorarioScreen(
                 {
                     Button(
                         onClick = {
-                            viewModel.eliminar(reserva)
+                            confirmandoBorrado = reserva
                             reservaAMostrar = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
                     ) {
                         Text("Eliminar")
                     }
@@ -286,6 +314,18 @@ fun HorarioScreen(
             } else {
                 null
             }
+        )
+    }
+
+    confirmandoBorrado?.let { aBorrar ->
+        ConfirmacionBorrado(
+            mensaje = "Vas a eliminar la reservación \"${aBorrar.titulo}\" del " +
+                "${aBorrar.fecha.etiquetaLarga()}. Esta acción no se puede deshacer.",
+            onConfirmar = {
+                viewModel.eliminar(aBorrar)
+                confirmandoBorrado = null
+            },
+            onCancelar = { confirmandoBorrado = null }
         )
     }
 }
@@ -304,15 +344,22 @@ private fun EncabezadosDias(dias: List<LocalDate>, hoy: LocalDate) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 2.dp),
+                    .padding(horizontal = 2.dp)
+                    .semantics {
+                        heading()
+                        contentDescription = "${HorarioSemana.ENCABEZADOS[indice]} " +
+                            "${fecha.dayOfMonth} de " +
+                            fecha.month.getDisplayName(TextStyle.FULL, EsPanol) +
+                            if (esHoy) ", hoy" else ""
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp)
+                        .heightIn(min = 44.dp)
                         .background(
-                            if (esHoy) ColumnaHoy else Color.Transparent,
+                            if (esHoy) UniSpotTheme.colors.columnaHoy else Color.Transparent,
                             RoundedCornerShape(6.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -321,12 +368,20 @@ private fun EncabezadosDias(dias: List<LocalDate>, hoy: LocalDate) {
                         HorarioSemana.ENCABEZADOS[indice],
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (esHoy) VerdeOscuro else Color.Gray
+                        color = if (esHoy) {
+                            UniSpotTheme.colors.verdeOscuro
+                        } else {
+                            UniSpotTheme.colors.textoSecundario
+                        }
                     )
                     Text(
                         "${fecha.dayOfMonth}",
-                        fontSize = 10.sp,
-                        color = if (esHoy) VerdeOscuro else Color.Gray
+                        fontSize = 11.sp,
+                        color = if (esHoy) {
+                            UniSpotTheme.colors.verdeOscuro
+                        } else {
+                            UniSpotTheme.colors.textoSecundario
+                        }
                     )
                 }
             }
@@ -346,44 +401,48 @@ private fun CeldaHorario(
     onCeldaLibreClick: () -> Unit,
     onCeldaReservadaClick: (ReservacionEntity) -> Unit
 ) {
+    val colores = UniSpotTheme.colors
     val horaInicio = HorarioSemana.inicioDeBloque(indiceBloque)
 
     // El título aparece solo en el bloque donde arranca la reserva, para no
     // repetirlo cinco veces si ocupa varias horas seguidas.
     val muestraTitulo = reserva != null && reserva.horaInicio >= horaInicio
 
-    val descripcion = if (reserva == null) {
-        "Libre, ${fecha.etiquetaLarga()} ${HorarioSemana.etiquetaHora(indiceBloque)}"
-    } else {
-        "Reservado: ${reserva.titulo}, ${reserva.rangoDeHoras()}"
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(ALTO_CELDA)
+            .heightIn(min = 48.dp)
             .padding(vertical = 1.dp)
             .background(
-                if (reserva == null) CeldaLibre else CeldaReservada,
+                if (reserva == null) colores.celdaLibre else colores.celdaReservada,
                 RoundedCornerShape(6.dp)
             )
-            .border(1.dp, CeldaBorde.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+            .border(1.dp, colores.bordeCelda, RoundedCornerShape(6.dp))
             .clickable {
                 if (reserva == null) onCeldaLibreClick() else onCeldaReservadaClick(reserva)
             }
-            .semantics { contentDescription = descripcion },
+            .semantics {
+                stateDescription = if (reserva == null) "Libre" else "Reservado"
+                contentDescription = if (reserva == null) {
+                    "Libre, ${fecha.etiquetaLarga()}, " +
+                        HorarioSemana.etiquetaHora(indiceBloque)
+                } else {
+                    "Reservado, ${reserva.titulo}, ${reserva.rangoDeHoras()}, " +
+                        fecha.etiquetaLarga()
+                }
+            }
+            .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         if (muestraTitulo) {
             Text(
                 reserva!!.titulo,
-                color = Color.White,
-                fontSize = 9.sp,
+                color = colores.contenidoSobreVerdeOscuro,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 2.dp)
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -391,6 +450,7 @@ private fun CeldaHorario(
 
 @Composable
 private fun LeyendaHorario() {
+    val colores = UniSpotTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -398,20 +458,24 @@ private fun LeyendaHorario() {
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ItemLeyenda(color = CeldaLibre, texto = "Libre")
-        ItemLeyenda(color = CeldaReservada, texto = "Reservado")
+        ItemLeyenda(color = colores.celdaLibre, texto = "Libre")
+        ItemLeyenda(color = colores.celdaReservada, texto = "Reservado")
     }
 }
 
 @Composable
 private fun ItemLeyenda(color: Color, texto: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        // La leyenda es informativa, no un control: no debe anunciarse.
+        modifier = Modifier.clearAndSetSemantics {}
+    ) {
         Box(
             modifier = Modifier
-                .size(14.dp)
+                .size(16.dp)
                 .background(color, RoundedCornerShape(4.dp))
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(texto, fontSize = 12.sp, color = Color.Gray)
+        Text(texto, fontSize = 12.sp, color = UniSpotTheme.colors.textoSecundario)
     }
 }

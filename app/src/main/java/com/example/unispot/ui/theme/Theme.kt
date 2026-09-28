@@ -1,58 +1,122 @@
 package com.example.unispot.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+/**
+ * Colores propios de UniSpot que no encajan en el colorScheme de Material3,
+ * porque el contenido que va sobre los verdes es siempre el mismo (un verde
+ * muy oscuro) tanto en tema claro como en oscuro.
+ */
+data class UniSpotColors(
+    val contenidoSobreVerde: Color,
+    val contenidoSobreVerdeClaro: Color,
+    val contenidoSobreVerdeOscuro: Color,
+    val celdaLibre: Color,
+    val celdaReservada: Color,
+    val bordeCelda: Color,
+    val textoSecundario: Color,
+    val columnaHoy: Color,
+    val verdePrincipal: Color,
+    val verdeClaro: Color,
+    val verdeOscuro: Color,
+    val morado: Color
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+private val UniSpotColores = UniSpotColors(
+    contenidoSobreVerde = ContenidoSobreVerdePrincipal,
+    contenidoSobreVerdeClaro = ContenidoSobreVerdeClaro,
+    contenidoSobreVerdeOscuro = ContenidoSobreVerdeOscuro,
+    celdaLibre = CeldaLibre,
+    celdaReservada = CeldaReservada,
+    bordeCelda = BordeCelda,
+    textoSecundario = TextoSecundario,
+    columnaHoy = Color(0xFFDDDDDD),
+    verdePrincipal = VerdePrincipal,
+    verdeClaro = VerdeClaro,
+    verdeOscuro = VerdeOscuro,
+    morado = Morado
+)
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
+private val UniSpotColoresOscuros = UniSpotColors(
+    contenidoSobreVerde = ContenidoSobreVerdePrincipal,
+    contenidoSobreVerdeClaro = ContenidoSobreVerdeClaro,
+    contenidoSobreVerdeOscuro = ContenidoSobreVerdeOscuro,
+    celdaLibre = CeldaLibre,
+    celdaReservada = CeldaReservada,
+    bordeCelda = BordeCeldaOscuro,
+    textoSecundario = TextoSecundarioOscuro,
+    columnaHoy = Color(0xFF3A3A3A),
+    verdePrincipal = VerdePrincipal,
+    verdeClaro = VerdeClaro,
+    verdeOscuro = VerdeOscuro,
+    morado = Morado
+)
+
+val LocalUniSpotColors = staticCompositionLocalOf { UniSpotColores }
+
+private val EsquemaClaro = lightColorScheme(
+    primary = VerdePrincipal,
+    onPrimary = ContenidoSobreVerdePrincipal,
+    secondary = VerdeOscuro,
+    onSecondary = ContenidoSobreVerdeOscuro,
+    tertiary = Morado,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = Fondo,
+    onBackground = VerdeOscuro,
+    surface = Color.White,
+    onSurface = VerdeOscuro,
+    surfaceVariant = Color(0xFFE2E2E2),
+    onSurfaceVariant = TextoSecundario,
+    error = Color(0xFFB3261E),
+    onError = Color.White
+)
+
+private val EsquemaOscuro = darkColorScheme(
+    primary = VerdeClaro,
+    onPrimary = ContenidoSobreVerdeClaro,
+    secondary = VerdeOscuro,
+    onSecondary = ContenidoSobreVerdeOscuro,
+    tertiary = Morado,
+    onTertiary = Color.White,
+    background = FondoOscuro,
+    onBackground = VerdeClaro,
+    surface = SuperficieOscura,
+    onSurface = Color(0xFFE8E8E8),
+    surfaceVariant = SuperficieOscuraAlta,
+    onSurfaceVariant = TextoSecundarioOscuro,
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410)
 )
 
 @Composable
 fun UniSpotTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    temaOscuro: Boolean,
+    contenido: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val esquema = if (temaOscuro) EsquemaOscuro else EsquemaClaro
+    val colores = if (temaOscuro) UniSpotColoresOscuros else UniSpotColores
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    CompositionLocalProvider(LocalUniSpotColors provides colores) {
+        MaterialTheme(
+            colorScheme = esquema,
+            typography = Typography(),
+            content = contenido
+        )
     }
+}
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+/** Acceso corto a los colores de UniSpot: `UniSpotTheme.colors.verdePrincipal`. */
+object UniSpotTheme {
+    val colors: UniSpotColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalUniSpotColors.current
 }

@@ -68,7 +68,37 @@ object HorarioSemana {
             reserva.horaInicio < finBloque && reserva.horaFin > inicioBloque
         }
     }
+
+    /**
+     * Cuántos bloques quedan ocupados y cuántos libres en la semana.
+     *
+     * Se cuenta por celda y no por número de reservas: una reserva de tres
+     * horas ocupa tres bloques, y usar el número de reservas daba un resumen
+     * equivocado.
+     */
+    fun ocupacionDeSemana(
+        reservasPorDia: Map<LocalDate, List<ReservacionEntity>>,
+        dias: List<LocalDate>
+    ): OcupacionSemana {
+        var ocupados = 0
+        for (dia in dias) {
+            val delDia = reservasPorDia[dia].orEmpty()
+            for (indice in 0 until NUM_BLOQUES) {
+                if (reservaEnBloque(delDia, indice) != null) ocupados++
+            }
+        }
+        return OcupacionSemana(
+            ocupados = ocupados,
+            libres = NUM_BLOQUES * dias.size - ocupados
+        )
+    }
 }
+
+/** Recuento de bloques libres y ocupados de una semana. */
+data class OcupacionSemana(
+    val ocupados: Int,
+    val libres: Int
+)
 
 /** "viernes 12 de septiembre" */
 fun LocalDate.etiquetaLarga(): String = format(

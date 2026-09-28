@@ -1,7 +1,7 @@
 package com.example.unispot.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,9 +55,7 @@ import com.example.unispot.data.ReservacionViewModel
 import com.example.unispot.ui.HorarioSemana
 import com.example.unispot.ui.ReservaPendiente
 import com.example.unispot.ui.etiquetaLarga
-import com.example.unispot.ui.theme.Fondo
-import com.example.unispot.ui.theme.Morado
-import com.example.unispot.ui.theme.VerdeOscuro
+import com.example.unispot.ui.theme.UniSpotTheme
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -102,134 +105,149 @@ fun ReservarScreen(
             inicio >= fin
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Fondo)
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(20.dp)
+    // Limitado y centrado: en tablet el formulario no debe estirarse de borde
+    // a borde, las líneas se vuelven ilegibles.
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        Text(
-            "Nueva Reservación",
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold,
-            color = VerdeOscuro
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        OutlinedTextField(
-            value = titulo,
-            onValueChange = { titulo = it; viewModel.limpiarErrorReserva() },
-            label = { Text("Título") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = detalles,
-            onValueChange = { detalles = it },
-            label = { Text("Descripción (opcional)") },
-            minLines = 3,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            pendiente?.let { "${it.edificioNombre} - ${it.aulaNombre}" } ?: "Selecciona un aula",
-            fontWeight = FontWeight.Bold,
-            color = VerdeOscuro
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        SelectorCampo(
-            etiqueta = "Fecha",
-            valor = fecha.etiquetaLarga(),
-            icono = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
-            onClick = { mostrarSelectorFecha = true }
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SelectorCampo(
-                etiqueta = "Hora inicio",
-                valor = horaInicio,
-                icono = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                onClick = { editandoInicio = true },
-                modifier = Modifier.weight(1f)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 620.dp)
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Text(
+                "Nueva Reservación",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                color = UniSpotTheme.colors.verdeOscuro,
+                modifier = Modifier.semantics { heading() }
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            OutlinedTextField(
+                value = titulo,
+                onValueChange = { titulo = it; viewModel.limpiarErrorReserva() },
+                label = { Text("Título") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = detalles,
+                onValueChange = { detalles = it },
+                label = { Text("Descripción (opcional)") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                pendiente?.let { "${it.edificioNombre} - ${it.aulaNombre}" } ?: "Selecciona un aula",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             SelectorCampo(
-                etiqueta = "Hora fin",
-                valor = horaFin,
-                icono = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                onClick = { editandoFin = true },
-                modifier = Modifier.weight(1f)
+                etiqueta = "Fecha",
+                valor = fecha.etiquetaLarga(),
+                icono = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                onClick = { mostrarSelectorFecha = true }
             )
-        }
 
-        if (fueraDeHorario) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "El horario debe estar entre las 07:00 y las 21:00, y la hora de fin " +
-                    "debe ser posterior a la de inicio.",
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp
-            )
-        }
+            Spacer(modifier = Modifier.height(12.dp))
 
-        if (error != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                error!!,
-                color = MaterialTheme.colorScheme.error,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectorCampo(
+                    etiqueta = "Hora inicio",
+                    valor = horaInicio,
+                    icono = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                    onClick = { editandoInicio = true },
+                    modifier = Modifier.weight(1f)
+                )
 
-        Spacer(modifier = Modifier.height(25.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
-                onClick = onCancelar,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Text("Cancelar")
+                SelectorCampo(
+                    etiqueta = "Hora fin",
+                    valor = horaFin,
+                    icono = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                    onClick = { editandoFin = true },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            Button(
-                onClick = {
-                    viewModel.reservar(
-                        usuarioId = usuarioId,
-                        aulaId = pendiente?.aulaId ?: -1,
-                        titulo = titulo,
-                        detalles = detalles,
-                        fecha = fecha,
-                        horaInicio = horaInicio,
-                        horaFin = horaFin
+            if (fueraDeHorario) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "El horario debe estar entre las 07:00 y las 21:00, y la hora de fin " +
+                        "debe ser posterior a la de inicio.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
+
+            if (error != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    error!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(25.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onCancelar,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text("Cancelar")
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.reservar(
+                            usuarioId = usuarioId,
+                            aulaId = pendiente?.aulaId ?: -1,
+                            titulo = titulo,
+                            detalles = detalles,
+                            fecha = fecha,
+                            horaInicio = horaInicio,
+                            horaFin = horaFin
+                        )
+                    },
+                    enabled = titulo.isNotBlank() && !fueraDeHorario,
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = UniSpotTheme.colors.morado,
+                        // El morado sí aguanta texto blanco (15.5:1), a diferencia de
+                        // los verdes.
+                        contentColor = Color.White
                     )
-                },
-                enabled = titulo.isNotBlank() && !fueraDeHorario,
-                modifier = Modifier
-                    .weight(1.4f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Morado)
-            ) {
-                Text("Reservar", color = Color.White)
+                ) {
+                    Text("Reservar")
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+        }
     }
 
     if (mostrarSelectorFecha) {
@@ -317,8 +335,17 @@ private fun SelectorCampo(
         Row(verticalAlignment = Alignment.CenterVertically) {
             icono()
             Column(modifier = Modifier.padding(start = 8.dp)) {
-                Text(etiqueta, fontSize = 11.sp, color = Color.Gray)
-                Text(valor, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(
+                    etiqueta,
+                    fontSize = 11.sp,
+                    color = UniSpotTheme.colors.textoSecundario
+                )
+                Text(
+                    valor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

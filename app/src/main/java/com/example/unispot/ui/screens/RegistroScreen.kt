@@ -1,6 +1,5 @@
 package com.example.unispot.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,6 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,10 +48,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.unispot.data.SesionViewModel
 import com.example.unispot.data.ValidacionUsuario
+import com.example.unispot.ui.ContenidoCentrado
 import com.example.unispot.ui.components.BotonPrincipal
 import com.example.unispot.ui.components.LogoUniSpot
-import com.example.unispot.ui.theme.Fondo
-import com.example.unispot.ui.theme.VerdeOscuro
+import com.example.unispot.ui.theme.UniSpotTheme
 
 /**
  * Alta de cuenta con los cuatro datos que pide el prototipo: matrícula, nombre,
@@ -88,128 +92,148 @@ fun RegistroScreen(
             errorMatricula, errorNombre, errorCorreo, errorContrasena, errorConfirmacion
         ).all { it == null }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Fondo)
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(28.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onVolver) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Volver",
-                    tint = VerdeOscuro
+    val colores = UniSpotTheme.colors
+
+    ContenidoCentrado(anchoMaximo = 520.dp) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 28.dp, vertical = 20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onVolver,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver al inicio de sesión",
+                        tint = colores.verdeOscuro
+                    )
+                }
+
+                LogoUniSpot(
+                    modifier = Modifier
+                        .size(width = 110.dp, height = 44.dp)
                 )
             }
 
-            LogoUniSpot(
-                modifier = Modifier
-                    .size(width = 110.dp, height = 44.dp)
-            )
-        }
+            Spacer(modifier = Modifier.height(18.dp))
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Text(
-            "Crear cuenta",
-            fontSize = 27.sp,
-            fontWeight = FontWeight.Bold,
-            color = VerdeOscuro
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            "Registra tu cuenta de estudiante para reservar espacios.",
-            color = VerdeOscuro.copy(alpha = 0.75f),
-            fontSize = 14.sp
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        CampoFormulario(
-            valor = matricula,
-            onValorCambiado = { matricula = it },
-            etiqueta = "Matrícula",
-            error = errorMatricula,
-            teclado = KeyboardType.Number,
-            imeAction = ImeAction.Next
-        )
-
-        CampoFormulario(
-            valor = nombre,
-            onValorCambiado = { nombre = it },
-            etiqueta = "Nombre completo",
-            error = errorNombre,
-            imeAction = ImeAction.Next
-        )
-
-        CampoFormulario(
-            valor = correo,
-            onValorCambiado = { correo = it },
-            etiqueta = "Correo",
-            error = errorCorreo,
-            teclado = KeyboardType.Email,
-            imeAction = ImeAction.Next
-        )
-
-        CampoFormulario(
-            valor = contrasena,
-            onValorCambiado = { contrasena = it },
-            etiqueta = "Contraseña",
-            error = errorContrasena,
-            teclado = KeyboardType.Password,
-            imeAction = ImeAction.Next,
-            esContrasena = true,
-            verContrasena = verContrasena,
-            onAlternarVisibilidad = { verContrasena = !verContrasena }
-        )
-
-        CampoFormulario(
-            valor = confirmacion,
-            onValorCambiado = { confirmacion = it },
-            etiqueta = "Confirmar contraseña",
-            error = errorConfirmacion,
-            teclado = KeyboardType.Password,
-            imeAction = ImeAction.Done,
-            esContrasena = true,
-            verContrasena = verContrasena,
-            onAlternarVisibilidad = { verContrasena = !verContrasena }
-        )
-
-        if (error != null) {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                error!!,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                "Crear cuenta",
+                fontSize = 27.sp,
+                fontWeight = FontWeight.Bold,
+                color = colores.verdeOscuro,
+                modifier = Modifier.semantics { heading() }
             )
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-        BotonPrincipal(
-            texto = if (procesando) "Creando cuenta..." else "Crear cuenta",
-            onClick = {
-                sesion.registrarCuenta(matricula, nombre, correo, contrasena, confirmacion)
-            },
-            habilitado = formularioValido && !procesando
-        )
+            Text(
+                "Registra tu cuenta de estudiante para reservar espacios.",
+                color = colores.textoSecundario,
+                fontSize = 14.sp
+            )
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("¿Ya tienes cuenta?", color = VerdeOscuro.copy(alpha = 0.75f), fontSize = 14.sp)
-            TextButton(onClick = onVolver) {
-                Text("Iniciar sesión", color = VerdeOscuro, fontWeight = FontWeight.Bold)
+            CampoFormulario(
+                valor = matricula,
+                onValorCambiado = { matricula = it },
+                etiqueta = "Matrícula",
+                error = errorMatricula,
+                teclado = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            )
+
+            CampoFormulario(
+                valor = nombre,
+                onValorCambiado = { nombre = it },
+                etiqueta = "Nombre completo",
+                error = errorNombre,
+                imeAction = ImeAction.Next
+            )
+
+            CampoFormulario(
+                valor = correo,
+                onValorCambiado = { correo = it },
+                etiqueta = "Correo",
+                error = errorCorreo,
+                teclado = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            )
+
+            CampoFormulario(
+                valor = contrasena,
+                onValorCambiado = { contrasena = it },
+                etiqueta = "Contraseña",
+                error = errorContrasena,
+                teclado = KeyboardType.Password,
+                imeAction = ImeAction.Next,
+                esContrasena = true,
+                verContrasena = verContrasena,
+                onAlternarVisibilidad = { verContrasena = !verContrasena }
+            )
+
+            CampoFormulario(
+                valor = confirmacion,
+                onValorCambiado = { confirmacion = it },
+                etiqueta = "Confirmar contraseña",
+                error = errorConfirmacion,
+                teclado = KeyboardType.Password,
+                imeAction = ImeAction.Done,
+                esContrasena = true,
+                verContrasena = verContrasena,
+                onAlternarVisibilidad = { verContrasena = !verContrasena }
+            )
+
+            if (error != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    error!!,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Assertive }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            BotonPrincipal(
+                texto = if (procesando) "Creando cuenta..." else "Crear cuenta",
+                onClick = {
+                    sesion.registrarCuenta(matricula, nombre, correo, contrasena, confirmacion)
+                },
+                habilitado = formularioValido && !procesando
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "¿Ya tienes cuenta?",
+                    color = colores.textoSecundario,
+                    fontSize = 14.sp
+                )
+                TextButton(
+                    onClick = onVolver,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text(
+                        "Iniciar sesión",
+                        color = colores.verdeOscuro,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -246,7 +270,10 @@ private fun CampoFormulario(
         keyboardOptions = KeyboardOptions(keyboardType = teclado, imeAction = imeAction),
         trailingIcon = if (esContrasena) {
             {
-                IconButton(onClick = onAlternarVisibilidad) {
+                IconButton(
+                    onClick = onAlternarVisibilidad,
+                    modifier = Modifier.size(48.dp)
+                ) {
                     Icon(
                         imageVector = if (verContrasena) {
                             Icons.Default.VisibilityOff
